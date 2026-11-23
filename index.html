@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#16130f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Biblioteca</title>
+<style>
+:root{
+  --bg:#16130f; --bg2:#1f1b16; --card:#26211b; --line:#3a332a;
+  --tx:#efe6d8; --tx2:#b3a690; --tx3:#7f7463;
+  --acc:#e0a050; --acc2:#f3c27f; --ok:#7fb77e; --warn:#e0a050; --err:#e06a5a; --blue:#7fa8d6; --violet:#b28fd6;
+  --r:14px; --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme: light){
+  :root{--bg:#f6f1e8;--bg2:#efe7da;--card:#fffaf2;--line:#e1d6c4;--tx:#2b241b;--tx2:#6b5e4b;--tx3:#9a8d79;--acc:#b8732a;--acc2:#8f5418}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:15px;line-height:1.45}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.hidden{display:none!important}
+
+/* Header */
+header{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);
+  padding:calc(env(safe-area-inset-top) + 10px) 16px 0;border-bottom:1px solid var(--line)}
+.top{display:flex;align-items:center;gap:10px}
+.top h1{font-family:var(--serif);font-weight:600;font-size:24px;margin:0;flex:1;letter-spacing:.2px}
+.pill{font-size:12px;padding:4px 10px;border-radius:99px;border:1px solid var(--line);color:var(--tx2);white-space:nowrap;background:var(--bg2)}
+.pill.ok{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,transparent)}
+.pill.busy{color:var(--acc)}
+.pill.err{color:var(--err);border-color:color-mix(in srgb,var(--err) 50%,transparent)}
+.iconbtn{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--bg2);display:grid;place-items:center;font-size:18px}
+header{padding-bottom:10px}
+.burger{width:40px;height:40px;border:0;background:none;display:grid;place-items:center;padding:0;margin-left:-8px}
+.burger i,.burger i::before,.burger i::after{display:block;width:22px;height:2px;background:var(--tx);border-radius:2px;position:relative;content:""}
+.burger i::before{position:absolute;top:-7px}.burger i::after{position:absolute;top:7px}
+
+/* Drawer */
+.dov{position:fixed;inset:0;background:#0009;z-index:40;opacity:0;pointer-events:none;transition:opacity .2s}
+.dov.open{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;bottom:0;left:0;width:min(300px,84vw);background:var(--bg2);border-right:1px solid var(--line);z-index:41;
+  transform:translateX(-102%);transition:transform .22s ease;display:flex;flex-direction:column;
+  padding:calc(env(safe-area-inset-top) + 18px) 10px calc(env(safe-area-inset-bottom) + 14px)}
+.drawer.open{transform:none}
+.drawer .brand{font-family:var(--serif);font-size:22px;font-weight:600;padding:0 12px 14px}
+.drawer .grp{font-size:11px;text-transform:uppercase;letter-spacing:.9px;color:var(--tx3);padding:16px 12px 6px}
+.drawer button.it{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:none;border:0;padding:11px 12px;border-radius:10px;font-weight:500}
+.drawer button.it .ic{width:20px;text-align:center;opacity:.8}
+.drawer button.it.on{background:color-mix(in srgb,var(--acc) 18%,transparent);color:var(--acc2)}
+.drawer .spacer{flex:1}
+.drawer .ver{font-size:12px;color:var(--tx3);padding:12px 12px 0;border-top:1px solid var(--line);margin-top:10px}
+
+main{padding:14px 16px calc(env(safe-area-inset-bottom) + 90px);max-width:900px;margin:0 auto}
+
+/* Filters */
+.search{width:100%;padding:11px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg2);outline:none}
+.search:focus{border-color:var(--acc)}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:10px 0 4px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;padding:6px 12px;border-radius:99px;border:1px solid var(--line);background:var(--bg2);color:var(--tx2);font-size:13px}
+.chip b{font-weight:600;color:var(--tx3);margin-left:4px}
+.chip.on{background:var(--acc);border-color:var(--acc);color:#1b140b}
+.chip.on b{color:#1b140b}
+.row{display:flex;gap:8px;margin-top:8px}
+.row select{flex:1;min-width:0;padding:9px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg2)}
+
+/* Book list */
+.list{display:grid;gap:10px;margin-top:14px}
+@media(min-width:700px){.list{grid-template-columns:1fr 1fr}}
+.book{display:flex;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px;text-align:left;width:100%}
+.spine{flex:none;width:46px;height:68px;border-radius:4px 8px 8px 4px;display:grid;place-items:center;font-family:var(--serif);font-weight:700;color:#fff8;font-size:17px;
+  box-shadow:inset 4px 0 0 #0003, inset -1px 0 0 #fff2}
+.binfo{flex:1;min-width:0}
+.btitle{font-family:var(--serif);font-size:16.5px;font-weight:600;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.bauthor{color:var(--tx2);font-size:13px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bmeta{display:flex;align-items:center;gap:8px;margin-top:7px;flex-wrap:wrap}
+.badge{font-size:11.5px;padding:2px 8px;border-radius:99px;font-weight:600}
+.s-daleggere{background:color-mix(in srgb,var(--tx3) 22%,transparent);color:var(--tx2)}
+.s-leggendo{background:color-mix(in srgb,var(--blue) 22%,transparent);color:var(--blue)}
+.s-riassumendo{background:color-mix(in srgb,var(--violet) 22%,transparent);color:var(--violet)}
+.s-letto{background:color-mix(in srgb,var(--ok) 22%,transparent);color:var(--ok)}
+.s-abbandonato{background:color-mix(in srgb,var(--err) 20%,transparent);color:var(--err)}
+.stars{color:var(--acc);font-size:13px;letter-spacing:1px}
+.prog{height:5px;border-radius:9px;background:var(--line);margin-top:8px;overflow:hidden}
+.prog i{display:block;height:100%;background:var(--acc);border-radius:9px}
+.small{font-size:12px;color:var(--tx3)}
+.empty{text-align:center;color:var(--tx3);padding:50px 10px}
+.empty h3{font-family:var(--serif);color:var(--tx);font-size:20px;margin:0 0 6px}
+
+.fab{position:fixed;right:18px;bottom:calc(env(safe-area-inset-bottom) + 18px);width:58px;height:58px;border-radius:18px;border:0;background:var(--acc);color:#1b140b;font-size:30px;
+  box-shadow:0 8px 24px #0006;z-index:15}
+
+/* Buttons */
+.btn{padding:11px 16px;border-radius:12px;border:1px solid var(--line);background:var(--bg2);font-weight:600}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#1b140b}
+.btn.danger{color:var(--err);border-color:color-mix(in srgb,var(--err) 45%,transparent)}
+.btn:disabled{opacity:.5}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.btns .btn{flex:1}
+
+/* Sheet / modal */
+.ov{position:fixed;inset:0;background:#000a;z-index:50;display:flex;align-items:flex-end;justify-content:center}
+@media(min-width:700px){.ov{align-items:center}}
+.sheet{background:var(--bg);width:100%;max-width:640px;max-height:92vh;overflow:auto;border-radius:20px 20px 0 0;border:1px solid var(--line);
+  padding:18px 16px calc(env(safe-area-inset-bottom) + 18px)}
+@media(min-width:700px){.sheet{border-radius:20px}}
+.sheet h2{font-family:var(--serif);margin:0 0 14px;font-size:22px;display:flex;align-items:center;gap:8px}
+.sheet h2 span{flex:1}
+.sheet h3{font-size:13px;text-transform:uppercase;letter-spacing:.8px;color:var(--tx3);margin:22px 0 8px}
+.f{display:block;margin-bottom:12px}
+.f>span{display:block;font-size:12.5px;color:var(--tx2);margin-bottom:5px;font-weight:600}
+.f input,.f select,.f textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg2);outline:none}
+.f input:focus,.f select:focus,.f textarea:focus{border-color:var(--acc)}
+.f textarea{min-height:90px;resize:vertical}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.rate{display:flex;gap:4px}
+.rate button{background:none;border:0;font-size:28px;color:var(--line);padding:0 2px}
+.rate button.on{color:var(--acc)}
+.qitem{display:flex;gap:8px;align-items:flex-start;margin-bottom:8px}
+.qitem textarea{flex:1;min-height:56px;padding:9px 11px;border-radius:10px;border:1px solid var(--line);background:var(--bg2);font-family:var(--serif);font-style:italic}
+.qitem button{border:0;background:none;color:var(--tx3);font-size:20px;padding:6px}
+.note{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:13px;color:var(--tx2)}
+.note code{background:var(--card);padding:1px 5px;border-radius:5px;font-size:12px}
+.note ol{margin:6px 0 0;padding-left:20px}
+.check{display:flex;align-items:center;gap:8px;font-size:14px;margin:4px 0 12px}
+
+/* Detail */
+.dhead{display:flex;gap:14px;align-items:flex-start}
+.dhead .spine{width:70px;height:104px;font-size:24px}
+.dtitle{font-family:var(--serif);font-size:22px;font-weight:600;line-height:1.2}
+.desc{white-space:pre-wrap;color:var(--tx2);font-size:14px}
+.quote{font-family:var(--serif);font-style:italic;font-size:15.5px;border-left:3px solid var(--acc);padding:4px 0 4px 12px;margin:0 0 12px;color:var(--tx)}
+.quote small{display:block;font-style:normal;font-family:var(--sans);font-size:12px;color:var(--tx3);margin-top:4px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:14px}
+.kv dt{color:var(--tx3)} .kv dd{margin:0}
+.pagectl{display:flex;gap:8px;align-items:center;margin-top:10px}
+.pagectl input{width:90px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--bg2);text-align:center}
+.tag{display:inline-block;font-size:12px;padding:3px 9px;border-radius:99px;background:var(--bg2);border:1px solid var(--line);color:var(--tx2);margin:0 4px 4px 0}
+
+/* Stats */
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(min-width:700px){.kpis{grid-template-columns:repeat(4,1fr)}}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.kpi b{display:block;font-family:var(--serif);font-size:28px;font-weight:600}
+.kpi span{font-size:12.5px;color:var(--tx2)}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-top:12px}
+.panel h4{margin:0 0 12px;font-size:14px}
+.bar{display:grid;grid-template-columns:110px 1fr 34px;gap:8px;align-items:center;font-size:13px;margin-bottom:7px}
+.bar .lb{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--tx2)}
+.bar .tr{height:10px;background:var(--bg2);border-radius:9px;overflow:hidden}
+.bar .tr i{display:block;height:100%;background:var(--acc);border-radius:9px}
+.bar .vl{text-align:right;font-variant-numeric:tabular-nums}
+
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 90px);transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;z-index:100;max-width:90vw;box-shadow:0 8px 24px #0006}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="top">
+    <button class="burger" id="btnMenu" aria-label="Menu"><i></i></button>
+    <h1 id="pageTitle">Libri</h1>
+    <span id="sync" class="pill">Non collegato</span>
+  </div>
+</header>
+
+<div class="dov" id="dov"></div>
+<aside class="drawer" id="drawer">
+  <div class="brand">Biblioteca</div>
+  <button class="it on" data-tab="books"><span class="ic">📚</span>Libri</button>
+  <button class="it" data-tab="quotes"><span class="ic">❝</span>Citazioni</button>
+  <button class="it" data-tab="stats"><span class="ic">📊</span>Statistiche</button>
+  <div class="grp">Dati</div>
+  <button class="it" data-act="add"><span class="ic">＋</span>Aggiungi libro</button>
+  <button class="it" data-act="csv"><span class="ic">⇪</span>Importa CSV</button>
+  <button class="it" data-act="export"><span class="ic">⇩</span>Esporta backup JSON</button>
+  <button class="it" data-act="restore"><span class="ic">↺</span>Ripristina backup JSON</button>
+  <div class="grp">Sincronizzazione</div>
+  <button class="it" data-act="sync"><span class="ic">⟳</span>Ricarica da GitHub</button>
+  <button class="it" data-act="settings"><span class="ic">⚙︎</span>Impostazioni GitHub</button>
+  <div class="spacer"></div>
+  <div class="ver" id="appVer"></div>
+</aside>
+
+<main>
+  <section id="tab-books">
+    <input id="q" class="search" type="search" placeholder="Cerca titolo, autore, genere…">
+    <div id="statusChips" class="chips"></div>
+    <div class="row">
+      <select id="fGenre"></select>
+      <select id="fSort">
+        <option value="recent">Più recenti</option>
+        <option value="title">Titolo A–Z</option>
+        <option value="author">Autore A–Z</option>
+        <option value="rating">Valutazione</option>
+        <option value="finished">Data fine</option>
+        <option value="started">Data inizio</option>
+      </select>
+    </div>
+    <div id="list" class="list"></div>
+  </section>
+
+  <section id="tab-quotes" class="hidden">
+    <div id="randomQuote"></div>
+    <input id="qq" class="search" type="search" placeholder="Cerca nelle citazioni…" style="margin-top:12px">
+    <div id="quotesList" style="margin-top:16px"></div>
+  </section>
+
+  <section id="tab-stats" class="hidden"><div id="stats"></div></section>
+</main>
+
+<button class="fab" id="fab" title="Aggiungi libro">+</button>
+<div id="modalRoot"></div>
+<input type="file" id="fileCsv" accept=".csv,text/csv" class="hidden">
+<input type="file" id="fileJson" accept=".json,application/json" class="hidden">
+
+<script>
+/* =========================================================
+   COSTANTI E STATO
+   ========================================================= */
+const APP_VERSION = '1.0.0';
+const STATUSES =['Da leggere','Leggendo','Riassumendo','Letto','Abbandonato'];
+const CFG_KEY = 'biblioteca.github.config';
+const SCHEMA_VERSION = 1;
+
+let db = { version: SCHEMA_VERSION, updatedAt: null, books: [] }; // solo in memoria
+let remoteSha = null;
+let cfg = loadCfg();
+let ui = { tab:'books', status:'Tutti', genre:'', sort:'recent', q:'', qq:'' };
+let dirty = false, saving = false, saveAgain = false, saveTimer = null, lastAction = '';
+
+/* =========================================================
+   UTILITY
+   ========================================================= */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2));
+const norm = s => String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+const slug = s => String(s||'').toLowerCase().replace(/\s+/g,'');
+const fmtDate = iso => { if(!iso) return ''; const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`; };
+const today = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+function toast(msg, ms=2600){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(), ms); }
+function hue(s){ let h=0; for(const c of String(s)) h=(h*31+c.charCodeAt(0))>>>0; return h%360; }
+function spine(b, cls=''){ const h=hue(b.title+b.author); const ini=(b.title||'?').replace(/[^\p{L}\p{N}]/gu,'').slice(0,2).toUpperCase();
+  return `<div class="spine ${cls}" style="background:linear-gradient(160deg,hsl(${h} 38% 38%),hsl(${(h+25)%360} 42% 24%))">${esc(ini)}</div>`; }
+const starsTxt = n => n ? '★'.repeat(n)+'<span style="opacity:.25">'+'★'.repeat(5-n)+'</span>' : '';
+function progressOf(b){
+  if (b.totalPages>0) return Math.min(100, Math.round((b.currentPage||0)/b.totalPages*100));
+  if (b.status==='Letto' || b.status==='Riassumendo') return 100;
+  return b.progress||0;
+}
+
+/* base64 <-> UTF-8 */
+function b64encode(str){ const bytes=new TextEncoder().encode(str); let bin=''; for(let i=0;i<bytes.length;i+=0x8000) bin+=String.fromCharCode.apply(null, bytes.subarray(i,i+0x8000)); return btoa(bin); }
+function b64decode(b64){ const bin=atob(b64.replace(/\s/g,'')); const bytes=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i); return new TextDecoder().decode(bytes); }
+
+/* =========================================================
+   CONFIG (solo le credenziali stanno sul dispositivo; i dati no)
+   ========================================================= */
+function loadCfg(){
+  try{ return JSON.parse(localStorage.getItem(CFG_KEY) || sessionStorage.getItem(CFG_KEY) || 'null'); }catch{ return null; }
+}
+function saveCfg(c, remember){
+  try{ localStorage.removeItem(CFG_KEY); sessionStorage.removeItem(CFG_KEY);
+       (remember?localStorage:sessionStorage).setItem(CFG_KEY, JSON.stringify(c)); }catch{}
+  cfg = c;
+}
+function clearCfg(){ try{ localStorage.removeItem(CFG_KEY); sessionStorage.removeItem(CFG_KEY);}catch{} cfg=null; }
+const connected = () => !!(cfg && cfg.token && cfg.owner && cfg.repo && cfg.path);
+
+/* =========================================================
+   GITHUB SYNC (Contents API)
+   ========================================================= */
+function ghUrl(c=cfg){ const p=c.path.split('/').map(encodeURIComponent).join('/'); return `https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}/contents/${p}`; }
+function ghHeaders(c=cfg){ return { 'Authorization':`Bearer ${c.token}`, 'Accept':'application/vnd.github+json', 'X-GitHub-Api-Version':'2022-11-28' }; }
+
+async function ghGet(c=cfg){
+  const r = await fetch(`${ghUrl(c)}?ref=${encodeURIComponent(c.branch||'main')}&t=${Date.now()}`, { headers:ghHeaders(c), cache:'no-store' });
+  if (r.status===404) return { exists:false };
+  if (!r.ok) throw new Error(await ghErr(r));
+  const j = await r.json();
+  let text;
+  if (j.content) text = b64decode(j.content);
+  else { // file > 1 MB: la Contents API non restituisce il contenuto, uso la Blob API
+    const rb = await fetch(`https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}/git/blobs/${j.sha}`, { headers:ghHeaders(c), cache:'no-store' });
+    if (!rb.ok) throw new Error(await ghErr(rb));
+    text = b64decode((await rb.json()).content);
+  }
+  return { exists:true, sha:j.sha, data: text.trim() ? JSON.parse(text) : null };
+}
+async function ghPut(data, sha, message){
+  const body = { message, content: b64encode(JSON.stringify(data, null, 2)+'\n'), branch: cfg.branch||'main' };
+  if (sha) body.sha = sha;
+  const r = await fetch(ghUrl(), { method:'PUT', headers:{...ghHeaders(),'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  if (r.status===409 || r.status===422) { const e=new Error('conflict'); e.conflict=true; e.detail=await ghErr(r); throw e; }
+  if (!r.ok) throw new Error(await ghErr(r));
+  return (await r.json()).content.sha;
+}
+async function ghErr(r){
+  let m=''; try{ m=(await r.json()).message||''; }catch{}
+  if (r.status===401) return 'Token non valido o scaduto (401)';
+  if (r.status===403) return 'Permessi insufficienti o limite API raggiunto (403)'+(m?': '+m:'');
+  if (r.status===404) return 'Repo, branch o percorso non trovati (404)';
+  return `Errore GitHub ${r.status}${m?': '+m:''}`;
+}
+
+function setSync(state, text){
+  const el=$('#sync'); el.className='pill '+(state||''); el.textContent=text;
+}
+function refreshSyncPill(){
+  if (!connected()) return setSync('err','Non collegato');
+  if (saving) return setSync('busy','Salvataggio…');
+  if (dirty) return setSync('busy','Modifiche in coda');
+  setSync('ok','Sincronizzato');
+}
+
+async function pullRemote(){
+  if (!connected()) { refreshSyncPill(); return; }
+  setSync('busy','Caricamento…');
+  try{
+    const res = await ghGet();
+    if (!res.exists){ db = { version:SCHEMA_VERSION, updatedAt:null, books:[] }; remoteSha=null; toast('Il file JSON non esiste ancora: verrà creato al primo salvataggio'); }
+    else { db = migrate(res.data); remoteSha = res.sha; }
+    dirty=false; render(); refreshSyncPill();
+  }catch(e){ setSync('err','Errore'); toast(e.message, 5000); }
+}
+
+function markDirty(action){
+  db.updatedAt = new Date().toISOString();
+  lastAction = action || 'aggiornamento';
+  dirty = true; render(); refreshSyncPill();
+  if (!connected()) { setSync('err','Non salvato'); return; }
+  clearTimeout(saveTimer); saveTimer = setTimeout(pushRemote, 1200);
+}
+
+async function pushRemote(force=false){
+  if (!connected() || (!dirty && !force)) return;
+  if (saving){ saveAgain=true; return; }
+  saving=true; refreshSyncPill();
+  const snapshot = JSON.parse(JSON.stringify(db));
+  const msg = `Biblioteca: ${lastAction}`;
+  try{
+    remoteSha = await ghPut(snapshot, remoteSha, msg);
+    if (JSON.stringify(snapshot)===JSON.stringify(db)) dirty=false;
+  }catch(e){
+    if (e.conflict){
+      saving=false;
+      const overwrite = confirm('Il file su GitHub è stato modificato da un altro dispositivo.\n\nOK = sovrascrivi con la versione di questo dispositivo\nAnnulla = ricarica la versione remota (perdi le modifiche locali non salvate)');
+      try{
+        const res = await ghGet();
+        if (overwrite){ remoteSha = res.exists?res.sha:null; saving=false; dirty=true; return pushRemote(true); }
+        db = migrate(res.data); remoteSha = res.sha; dirty=false; render();
+      }catch(e2){ toast(e2.message,5000); }
+    } else { toast('Salvataggio fallito: '+e.message, 5000); setSync('err','Errore'); saving=false; return; }
+  }
+  saving=false; refreshSyncPill();
+  if (saveAgain){ saveAgain=false; if(dirty) pushRemote(); }
+}
+
+window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue=''; } });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState==='hidden' && dirty) { clearTimeout(saveTimer); pushRemote(); } });
+
+/* =========================================================
+   MODELLO DATI
+   ========================================================= */
+function blankBook(){
+  return { id:uid(), title:'', author:'', status:'Da leggere', rating:0, genres:[], language:'Italiano',
+    startedAt:'', finishedAt:'', currentPage:0, totalPages:0, progress:0, description:'', quotes:[],
+    createdAt:new Date().toISOString(), updatedAt:new Date().toISOString() };
+}
+function migrate(data){
+  const out = { version:SCHEMA_VERSION, updatedAt:data?.updatedAt||null, books:[] };
+  const arr = Array.isArray(data) ? data : (data?.books||[]);
+  out.books = arr.map(b => ({ ...blankBook(), ...b, id:b.id||uid(),
+    genres:Array.isArray(b.genres)?b.genres:[], quotes:Array.isArray(b.quotes)?b.quotes:[] }));
+  return out;
+}
+
+/* =========================================================
+   IMPORT CSV (export database Notion)
+   ========================================================= */
+/*PARSE-START*/
+function parseCSV(text){
+  text = text.replace(/^﻿/,'');
+  const rows=[]; let row=[], f='', q=false;
+  for (let i=0;i<text.length;i++){
+    const c=text[i];
+    if (q){
+      if (c==='"'){ if (text[i+1]==='"'){ f+='"'; i++; } else q=false; }
+      else f+=c;
+    } else {
+      if (c==='"') q=true;
+      else if (c===','){ row.push(f); f=''; }
+      else if (c==='\n' || c==='\r'){ if (c==='\r' && text[i+1]==='\n') i++; row.push(f); rows.push(row); row=[]; f=''; }
+      else f+=c;
+    }
+  }
+  if (f!=='' || row.length){ row.push(f); rows.push(row); }
+  const head = rows.shift().map(h=>h.trim());
+  return rows.filter(r=>r.some(v=>v.trim()!=='')).map(r=>Object.fromEntries(head.map((h,i)=>[h, r[i]??''])));
+}
+const MONTHS={january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12,
+  gennaio:1,febbraio:2,marzo:3,aprile:4,maggio:5,giugno:6,luglio:7,agosto:8,settembre:9,ottobre:10,novembre:11,dicembre:12};
+function parseDateLoose(s){
+  s = String(s||'').replace(/\(.*?\)/g,'').trim();
+  if (!s) return '';
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/); if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = s.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})/);            // November 25, 2022
+  if (m && MONTHS[m[1].toLowerCase()]) return `${m[3]}-${String(MONTHS[m[1].toLowerCase()]).padStart(2,'0')}-${m[2].padStart(2,'0')}`;
+  m = s.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/);              // 25 novembre 2022
+  if (m && MONTHS[m[2].toLowerCase()]) return `${m[3]}-${String(MONTHS[m[2].toLowerCase()]).padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);                  // 25/11/2022
+  if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  return '';
+}
+/* Le relazioni Notion arrivano come "Testo (https://app.notion.com/...), Testo2 (https://...)":
+   uso i link come separatori, così funziona anche se il testo contiene virgole. */
+function splitNotionRelations(s){
+  s = String(s||'');
+  if (!s.trim()) return [];
+  const parts = s.split(/\s*\(https?:\/\/[^)\s]*\)\s*,?/);
+  return parts.map(p => p.replace(/^[\s,]+|[\s,]+$/g,'').replace(/\s*\n\s*/g,' ').trim()).filter(Boolean);
+}
+function cleanQuote(q){
+  return q.trim().replace(/^[“"«]+/,'').replace(/[”"»]+\s*\.?$/,'').trim();
+}
+function cleanAuthor(a){
+  return String(a||'').replace(/\s*\(#\*bookito\*#\)\s*/g,', ').replace(/^[\s,]+|[\s,]+$/g,'').replace(/\s{2,}/g,' ');
+}
+function mapCsvRow(r){
+  const b = blankBook();
+  b.title = (r['Name']||r['Nome']||r['Titolo']||'').trim();
+  b.author = cleanAuthor(r['Autore']);
+  const st = (r['Stato']||'').trim();
+  b.status = STATUSES.find(s=>s.toLowerCase()===st.toLowerCase()) || (st || 'Da leggere');
+  b.rating = ((r['Valutazione']||'').match(/★/g)||[]).length;
+  b.genres = splitNotionRelations(r['Genere']);
+  b.language = (r['Lingua']||'').trim();
+  b.startedAt = parseDateLoose(r['Iniziato il']);
+  b.finishedAt = parseDateLoose(r['Completato il']);
+  b.currentPage = parseInt(r['Pagina attuale'])||0;
+  b.totalPages = parseInt(r['Pagine totali'])||0;
+  b.progress = parseInt(String(r['Completamento']||'').replace('%',''))||0;
+  b.description = (r['Descrizione']||'').trim();
+  b.quotes = splitNotionRelations(r['Quotes']||r['Citazioni']).map(cleanQuote).filter(Boolean);
+  if (!b.language && b.status==='Da leggere') b.language='';
+  return b;
+}
+/*PARSE-END*/
+
+function openImportCsv(){ $('#fileCsv').value=''; $('#fileCsv').click(); }
+$('#fileCsv').addEventListener('change', async e => {
+  const file = e.target.files[0]; if (!file) return;
+  let books;
+  try{ books = parseCSV(await file.text()).map(mapCsvRow).filter(b=>b.title); }
+  catch(err){ toast('CSV non leggibile: '+err.message, 5000); return; }
+  const idx = new Map(db.books.map(b=>[norm(b.title), b]));
+  const nNew = books.filter(b=>!idx.has(norm(b.title))).length;
+  const nUpd = books.length - nNew;
+  modal(`
+    <h2><span>Importa CSV</span></h2>
+    <p>Trovati <b>${books.length}</b> libri nel file.</p>
+    <div class="note">• <b>${nNew}</b> nuovi<br>• <b>${nUpd}</b> già presenti (stesso titolo)</div>
+    <h3>Modalità</h3>
+    <div class="btns" style="flex-direction:column">
+      <button class="btn pri" data-mode="merge">Unisci — aggiungi i nuovi e aggiorna i presenti</button>
+      <button class="btn" data-mode="add">Solo nuovi — non toccare i presenti</button>
+      <button class="btn danger" data-mode="replace">Sostituisci tutto — cancella la biblioteca attuale</button>
+      <button class="btn" data-close>Annulla</button>
+    </div>`, root => {
+    root.querySelectorAll('[data-mode]').forEach(btn => btn.onclick = () => {
+      const mode = btn.dataset.mode;
+      if (mode==='replace' && !confirm(`Sostituire ${db.books.length} libri con ${books.length} dal CSV?`)) return;
+      if (mode==='replace') db.books = books;
+      else for (const b of books){
+        const ex = idx.get(norm(b.title));
+        if (!ex) db.books.push(b);
+        else if (mode==='merge'){
+          for (const k of ['author','status','rating','language','startedAt','finishedAt','currentPage','totalPages','progress','description'])
+            if (b[k] !== '' && b[k] !== 0) ex[k] = b[k];
+          if (b.genres.length) ex.genres = [...new Set([...ex.genres, ...b.genres])];
+          if (b.quotes.length) ex.quotes = [...new Set([...ex.quotes, ...b.quotes])];
+          ex.updatedAt = new Date().toISOString();
+        }
+      }
+      closeModal(); markDirty(`import CSV (${books.length} righe, ${mode})`);
+      toast('Import completato');
+    });
+  });
+});
+
+/* Import / export JSON */
+function exportJson(){
+  const blob = new Blob([JSON.stringify(db,null,2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`biblioteca-${today()}.json`; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+}
+$('#fileJson').addEventListener('change', async e => {
+  const file=e.target.files[0]; if(!file) return;
+  try{ const d = migrate(JSON.parse(await file.text()));
+    if (!confirm(`Sostituire la biblioteca attuale (${db.books.length} libri) con il backup (${d.books.length} libri)?`)) return;
+    db = d; closeModal(); markDirty('ripristino da backup JSON');
+  }catch(err){ toast('JSON non valido', 4000); }
+});
+
+/* =========================================================
+   RENDER
+   ========================================================= */
+function allGenres(){ const m=new Map(); db.books.forEach(b=>b.genres.forEach(g=>m.set(g,(m.get(g)||0)+1))); return [...m].sort((a,b)=>b[1]-a[1]); }
+
+function filtered(){
+  const q = norm(ui.q);
+  let arr = db.books.filter(b =>
+    (ui.status==='Tutti' || b.status===ui.status) &&
+    (!ui.genre || b.genres.includes(ui.genre)) &&
+    (!q || norm([b.title,b.author,b.genres.join(' '),b.description].join(' ')).includes(q)));
+  const cmpStr=(a,b)=>a.localeCompare(b,'it',{sensitivity:'base'});
+  const key = { title:b=>b.title, author:b=>b.author||'~' };
+  arr.sort((a,b)=>{
+    switch(ui.sort){
+      case 'title': case 'author': return cmpStr(key[ui.sort](a), key[ui.sort](b));
+      case 'rating': return (b.rating-a.rating) || cmpStr(a.title,b.title);
+      case 'finished': return (b.finishedAt||'').localeCompare(a.finishedAt||'');
+      case 'started': return (b.startedAt||'').localeCompare(a.startedAt||'');
+      default: { // in lettura prima, poi per attività più recente
+        const pri = s => s==='Leggendo'?0:1;
+        return pri(a.status)-pri(b.status) || (b.finishedAt||b.startedAt||b.createdAt||'').localeCompare(a.finishedAt||a.startedAt||a.createdAt||'');
+      }
+    }
+  });
+  return arr;
+}
+
+function render(){
+  // chips stato
+  const counts = Object.fromEntries(STATUSES.map(s=>[s,0])); db.books.forEach(b=>counts[b.status]=(counts[b.status]||0)+1);
+  $('#statusChips').innerHTML = ['Tutti',...STATUSES].filter(s=>s==='Tutti'||counts[s]).map(s =>
+    `<button class="chip ${ui.status===s?'on':''}" data-st="${esc(s)}">${esc(s)}<b>${s==='Tutti'?db.books.length:counts[s]}</b></button>`).join('');
+  // generi
+  const gs = allGenres();
+  $('#fGenre').innerHTML = `<option value="">Tutti i generi</option>` + gs.map(([g,n])=>`<option value="${esc(g)}" ${ui.genre===g?'selected':''}>${esc(g)} (${n})</option>`).join('');
+  $('#fSort').value = ui.sort;
+
+  if (ui.tab==='books') renderBooks();
+  if (ui.tab==='quotes') renderQuotes();
+  if (ui.tab==='stats') renderStats();
+}
+
+function renderBooks(){
+  const arr = filtered();
+  if (!db.books.length){
+    $('#list').innerHTML = `<div class="empty"><h3>La biblioteca è vuota</h3>
+      ${connected()?'':'<p>Collega prima la repo GitHub per salvare i dati.</p>'}
+      <div class="btns" style="max-width:360px;margin:16px auto 0">
+        ${connected()?'':'<button class="btn pri" onclick="openSettings()">Collega GitHub</button>'}
+        <button class="btn" onclick="openImportCsv()">Importa CSV</button>
+        <button class="btn" onclick="openEdit()">Aggiungi libro</button>
+      </div></div>`;
+    return;
+  }
+  if (!arr.length){ $('#list').innerHTML = `<div class="empty">Nessun libro con questi filtri.</div>`; return; }
+  $('#list').innerHTML = arr.map(b => {
+    const p = progressOf(b);
+    const date = b.status==='Letto'||b.status==='Riassumendo' ? (b.finishedAt?`Finito ${fmtDate(b.finishedAt)}`:'') :
+                 b.status==='Leggendo' ? (b.totalPages?`p. ${b.currentPage}/${b.totalPages}`:'') +(b.startedAt?` · dal ${fmtDate(b.startedAt)}`:'') : '';
+    return `<button class="book" data-id="${b.id}">
+      ${spine(b)}
+      <div class="binfo">
+        <div class="btitle">${esc(b.title)}</div>
+        <div class="bauthor">${esc(b.author||'Autore sconosciuto')}</div>
+        <div class="bmeta"><span class="badge s-${slug(b.status)}">${esc(b.status)}</span>
+          ${b.rating?`<span class="stars">${starsTxt(b.rating)}</span>`:''}
+          ${date?`<span class="small">${esc(date)}</span>`:''}</div>
+        ${b.status==='Leggendo'?`<div class="prog"><i style="width:${p}%"></i></div>`:''}
+      </div></button>`;
+  }).join('');
+}
+
+function allQuotes(){ const out=[]; db.books.forEach(b=>b.quotes.forEach(q=>out.push({q,b}))); return out; }
+function renderQuotes(){
+  const all = allQuotes();
+  if (!all.length){ $('#randomQuote').innerHTML=''; $('#quotesList').innerHTML='<div class="empty">Nessuna citazione salvata.</div>'; return; }
+  const r = all[Math.floor(Math.random()*all.length)];
+  $('#randomQuote').innerHTML = `<div class="panel" style="margin-top:0">
+    <div class="small" style="margin-bottom:8px">CITAZIONE A CASO</div>
+    <blockquote class="quote" style="font-size:18px;border:0;padding:0">“${esc(r.q)}”<small>${esc(r.b.title)}${r.b.author?' — '+esc(r.b.author):''}</small></blockquote>
+    <button class="btn" onclick="renderQuotes()">Un'altra</button></div>`;
+  const q = norm(ui.qq);
+  const list = all.filter(x=>!q||norm(x.q+' '+x.b.title+' '+x.b.author).includes(q));
+  $('#quotesList').innerHTML = `<div class="small" style="margin-bottom:10px">${list.length} citazioni</div>` +
+    list.map(x=>`<blockquote class="quote">“${esc(x.q)}”<small>${esc(x.b.title)}${x.b.author?' — '+esc(x.b.author):''}</small></blockquote>`).join('');
+}
+
+function bars(entries, max){
+  max = max || Math.max(1,...entries.map(e=>e[1]));
+  return entries.map(([l,v])=>`<div class="bar"><span class="lb" title="${esc(l)}">${esc(l)}</span><span class="tr"><i style="width:${v/max*100}%"></i></span><span class="vl">${v}</span></div>`).join('');
+}
+function renderStats(){
+  const B = db.books;
+  if (!B.length){ $('#stats').innerHTML='<div class="empty">Nessun dato.</div>'; return; }
+  const done = B.filter(b=>b.status==='Letto'||b.status==='Riassumendo');
+  const rated = B.filter(b=>b.rating>0);
+  const avg = rated.length ? (rated.reduce((s,b)=>s+b.rating,0)/rated.length).toFixed(1) : '–';
+  const pages = B.reduce((s,b)=>s+(b.status==='Leggendo'?(b.currentPage||0):(done.includes(b)?(b.totalPages||0):0)),0);
+  const thisYear = String(new Date().getFullYear());
+  const yearCount = done.filter(b=>(b.finishedAt||'').startsWith(thisYear)).length;
+  const byYear = {}; done.forEach(b=>{ const y=(b.finishedAt||'').slice(0,4); if(y) byYear[y]=(byYear[y]||0)+1; });
+  const byStatus = STATUSES.map(s=>[s,B.filter(b=>b.status===s).length]).filter(e=>e[1]);
+  const authors = {}; B.forEach(b=>b.author&&b.author.split(/,\s*/).forEach(a=>authors[a]=(authors[a]||0)+1));
+  const topAuthors = Object.entries(authors).filter(e=>e[1]>1).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const ratings = [5,4,3,2,1].map(n=>['★'.repeat(n), B.filter(b=>b.rating===n).length]);
+  const months = {}; done.filter(b=>(b.finishedAt||'').startsWith(thisYear)).forEach(b=>{ const m=+b.finishedAt.slice(5,7); months[m]=(months[m]||0)+1; });
+  const mNames=['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+  $('#stats').innerHTML = `
+    <div class="kpis">
+      <div class="kpi"><b>${B.length}</b><span>Libri totali</span></div>
+      <div class="kpi"><b>${done.length}</b><span>Letti</span></div>
+      <div class="kpi"><b>${yearCount}</b><span>Finiti nel ${thisYear}</span></div>
+      <div class="kpi"><b>${avg}</b><span>Voto medio</span></div>
+    </div>
+    <div class="panel"><h4>Libri finiti per anno</h4>${bars(Object.entries(byYear).sort())}</div>
+    <div class="panel"><h4>${thisYear} mese per mese</h4>${bars(mNames.map((n,i)=>[n,months[i+1]||0]))}</div>
+    <div class="panel"><h4>Per stato</h4>${bars(byStatus)}</div>
+    <div class="panel"><h4>Generi</h4>${bars(allGenres().slice(0,10))}</div>
+    <div class="panel"><h4>Valutazioni</h4>${bars(ratings)}</div>
+    ${topAuthors.length?`<div class="panel"><h4>Autori più letti</h4>${bars(topAuthors)}</div>`:''}
+    <p class="small" style="margin-top:14px">Pagine registrate: ${pages.toLocaleString('it-IT')} (solo libri con pagine totali indicate).</p>`;
+}
+
+/* =========================================================
+   MODALI
+   ========================================================= */
+function modal(html, onMount){
+  $('#modalRoot').innerHTML = `<div class="ov"><div class="sheet">${html}</div></div>`;
+  const ov = $('#modalRoot .ov');
+  ov.addEventListener('click', e => { if (e.target===ov || e.target.closest('[data-close]')) closeModal(); });
+  document.body.style.overflow='hidden';
+  onMount && onMount(ov);
+}
+function closeModal(){ $('#modalRoot').innerHTML=''; document.body.style.overflow=''; }
+
+function openDetail(id){
+  const b = db.books.find(x=>x.id===id); if(!b) return;
+  const p = progressOf(b);
+  modal(`
+    <h2><span></span><button class="iconbtn" data-close>✕</button></h2>
+    <div class="dhead">${spine(b)}<div style="flex:1;min-width:0">
+      <div class="dtitle">${esc(b.title)}</div>
+      <div class="bauthor" style="white-space:normal;font-size:14px">${esc(b.author||'Autore sconosciuto')}</div>
+      <div class="bmeta"><span class="badge s-${slug(b.status)}">${esc(b.status)}</span>${b.rating?`<span class="stars">${starsTxt(b.rating)}</span>`:''}</div>
+      <div style="margin-top:8px">${b.genres.map(g=>`<span class="tag">${esc(g)}</span>`).join('')}</div>
+    </div></div>
+
+    ${b.status==='Leggendo'||b.totalPages?`
+      <h3>Avanzamento ${p}%</h3>
+      <div class="prog" style="height:8px"><i style="width:${p}%"></i></div>
+      <div class="pagectl"><span class="small">Pagina</span>
+        <input id="dPage" type="number" inputmode="numeric" min="0" value="${b.currentPage||0}">
+        <span class="small">di ${b.totalPages||'?'}</span>
+        <button class="btn" id="dSavePage" style="margin-left:auto">Aggiorna</button></div>`:''}
+
+    <h3>Stato rapido</h3>
+    <div class="chips" style="padding-top:0">${STATUSES.map(s=>`<button class="chip ${b.status===s?'on':''}" data-qs="${esc(s)}">${esc(s)}</button>`).join('')}</div>
+
+    <h3>Dettagli</h3>
+    <dl class="kv">
+      ${b.startedAt?`<dt>Iniziato</dt><dd>${fmtDate(b.startedAt)}</dd>`:''}
+      ${b.finishedAt?`<dt>Finito</dt><dd>${fmtDate(b.finishedAt)}</dd>`:''}
+      ${b.startedAt&&b.finishedAt?`<dt>Durata</dt><dd>${Math.max(1,Math.round((new Date(b.finishedAt)-new Date(b.startedAt))/864e5))} giorni</dd>`:''}
+      ${b.language?`<dt>Lingua</dt><dd>${esc(b.language)}</dd>`:''}
+      ${b.totalPages?`<dt>Pagine</dt><dd>${b.totalPages}</dd>`:''}
+    </dl>
+    ${b.description?`<h3>Descrizione</h3><div class="desc">${esc(b.description)}</div>`:''}
+    ${b.quotes.length?`<h3>Citazioni (${b.quotes.length})</h3>${b.quotes.map(q=>`<blockquote class="quote">“${esc(q)}”</blockquote>`).join('')}`:''}
+
+    <div class="btns" style="margin-top:22px">
+      <button class="btn pri" id="dEdit">Modifica</button>
+      <button class="btn danger" id="dDel">Elimina</button>
+    </div>`, root => {
+    root.querySelector('#dEdit').onclick = () => openEdit(b.id);
+    root.querySelector('#dDel').onclick = () => { if(confirm(`Eliminare “${b.title}”?`)){ db.books=db.books.filter(x=>x.id!==b.id); closeModal(); markDirty(`eliminato “${b.title}”`); } };
+    const sp = root.querySelector('#dSavePage');
+    if (sp) sp.onclick = () => {
+      b.currentPage = Math.max(0, parseInt(root.querySelector('#dPage').value)||0);
+      if (b.totalPages && b.currentPage>=b.totalPages){ b.currentPage=b.totalPages; if (b.status==='Leggendo' && confirm('Hai finito il libro? Segno come Letto?')){ b.status='Letto'; b.finishedAt=b.finishedAt||today(); } }
+      b.updatedAt=new Date().toISOString(); markDirty(`“${b.title}” p. ${b.currentPage}`); openDetail(b.id);
+    };
+    root.querySelectorAll('[data-qs]').forEach(c => c.onclick = () => {
+      const s=c.dataset.qs; if (s===b.status) return;
+      b.status=s;
+      if (s==='Leggendo' && !b.startedAt) b.startedAt=today();
+      if ((s==='Letto'||s==='Riassumendo') && !b.finishedAt) b.finishedAt=today();
+      b.updatedAt=new Date().toISOString(); markDirty(`“${b.title}” → ${s}`); openDetail(b.id);
+    });
+  });
+}
+
+function openEdit(id){
+  const orig = id ? db.books.find(x=>x.id===id) : null;
+  const b = orig ? JSON.parse(JSON.stringify(orig)) : blankBook();
+  const gs = allGenres().map(g=>g[0]);
+  modal(`
+    <h2><span>${orig?'Modifica libro':'Nuovo libro'}</span><button class="iconbtn" data-close>✕</button></h2>
+    <label class="f"><span>Titolo *</span><input id="eTitle" value="${esc(b.title)}" autocomplete="off"></label>
+    <label class="f"><span>Autore</span><input id="eAuthor" value="${esc(b.author)}" list="authorsDL" autocomplete="off"></label>
+    <datalist id="authorsDL">${[...new Set(db.books.map(x=>x.author).filter(Boolean))].sort().map(a=>`<option value="${esc(a)}">`).join('')}</datalist>
+    <div class="g2">
+      <label class="f"><span>Stato</span><select id="eStatus">${STATUSES.map(s=>`<option ${s===b.status?'selected':''}>${s}</option>`).join('')}</select></label>
+      <label class="f"><span>Lingua</span><input id="eLang" value="${esc(b.language)}" list="langDL"></label>
+      <datalist id="langDL"><option value="Italiano"><option value="Inglese"><option value="Spagnolo"><option value="Francese"></datalist>
+    </div>
+    <div class="f"><span>Valutazione</span><div class="rate" id="eRate">${[1,2,3,4,5].map(n=>`<button type="button" data-n="${n}" class="${n<=b.rating?'on':''}">★</button>`).join('')}</div></div>
+    <div class="g2">
+      <label class="f"><span>Iniziato il</span><input id="eStart" type="date" value="${b.startedAt}"></label>
+      <label class="f"><span>Completato il</span><input id="eEnd" type="date" value="${b.finishedAt}"></label>
+    </div>
+    <div class="g2">
+      <label class="f"><span>Pagina attuale</span><input id="ePage" type="number" inputmode="numeric" min="0" value="${b.currentPage||''}"></label>
+      <label class="f"><span>Pagine totali</span><input id="eTot" type="number" inputmode="numeric" min="0" value="${b.totalPages||''}"></label>
+    </div>
+    <label class="f"><span>Generi (separati da virgola)</span><input id="eGenres" value="${esc(b.genres.join(', '))}" list="genresDL" autocomplete="off"></label>
+    <div id="genreSugg" style="margin:-6px 0 12px">${gs.map(g=>`<button type="button" class="tag" data-g="${esc(g)}" style="cursor:pointer">+ ${esc(g)}</button>`).join('')}</div>
+    <label class="f"><span>Descrizione / note</span><textarea id="eDesc">${esc(b.description)}</textarea></label>
+    <div class="f"><span>Citazioni</span><div id="eQuotes"></div><button type="button" class="btn" id="eAddQ" style="width:100%">+ Aggiungi citazione</button></div>
+    <div class="btns" style="margin-top:18px"><button class="btn" data-close>Annulla</button><button class="btn pri" id="eSave">Salva</button></div>
+  `, root => {
+    const qWrap = root.querySelector('#eQuotes');
+    const drawQ = () => { qWrap.innerHTML = b.quotes.map((q,i)=>`<div class="qitem"><textarea data-qi="${i}">${esc(q)}</textarea><button type="button" data-qd="${i}">✕</button></div>`).join('');
+      qWrap.querySelectorAll('[data-qi]').forEach(t=>t.oninput=()=>b.quotes[+t.dataset.qi]=t.value);
+      qWrap.querySelectorAll('[data-qd]').forEach(x=>x.onclick=()=>{ b.quotes.splice(+x.dataset.qd,1); drawQ(); }); };
+    drawQ();
+    root.querySelector('#eAddQ').onclick = () => { b.quotes.push(''); drawQ(); qWrap.querySelector('textarea:last-of-type')?.focus(); const all=qWrap.querySelectorAll('textarea'); all[all.length-1]?.focus(); };
+    root.querySelectorAll('#eRate button').forEach(btn => btn.onclick = () => {
+      const n=+btn.dataset.n; b.rating = b.rating===n ? 0 : n;
+      root.querySelectorAll('#eRate button').forEach(x=>x.classList.toggle('on', +x.dataset.n<=b.rating)); });
+    root.querySelectorAll('[data-g]').forEach(t => t.onclick = () => {
+      const inp=root.querySelector('#eGenres'); const cur=inp.value.split(',').map(s=>s.trim()).filter(Boolean);
+      if (!cur.includes(t.dataset.g)) cur.push(t.dataset.g); inp.value=cur.join(', '); });
+    root.querySelector('#eStatus').onchange = e => {
+      if (e.target.value==='Leggendo' && !root.querySelector('#eStart').value) root.querySelector('#eStart').value=today();
+      if ((e.target.value==='Letto'||e.target.value==='Riassumendo') && !root.querySelector('#eEnd').value) root.querySelector('#eEnd').value=today(); };
+    root.querySelector('#eSave').onclick = () => {
+      const v = s => root.querySelector(s).value;
+      b.title = v('#eTitle').trim();
+      if (!b.title){ toast('Il titolo è obbligatorio'); return; }
+      b.author = v('#eAuthor').trim(); b.status=v('#eStatus'); b.language=v('#eLang').trim();
+      b.startedAt=v('#eStart'); b.finishedAt=v('#eEnd');
+      b.currentPage=parseInt(v('#ePage'))||0; b.totalPages=parseInt(v('#eTot'))||0;
+      b.genres=[...new Set(v('#eGenres').split(',').map(s=>s.trim()).filter(Boolean))];
+      b.description=v('#eDesc').trim(); b.quotes=b.quotes.map(q=>q.trim()).filter(Boolean);
+      b.progress=progressOf(b); b.updatedAt=new Date().toISOString();
+      if (orig) Object.assign(orig, b); else db.books.push(b);
+      markDirty(`${orig?'modificato':'aggiunto'} “${b.title}”`);
+      openDetail(b.id);
+    };
+    if (!orig) setTimeout(()=>root.querySelector('#eTitle').focus(), 50);
+  });
+}
+
+function openSettings(){
+  const c = cfg || { owner:'', repo:'', branch:'main', path:'data/biblioteca.json', token:'' };
+  const remembered = (()=>{ try{ return !!localStorage.getItem(CFG_KEY); }catch{ return false; } })();
+  modal(`
+    <h2><span>Impostazioni GitHub</span><button class="iconbtn" data-close>✕</button></h2>
+    <h3 style="margin-top:0">Sincronizzazione GitHub</h3>
+    <div class="note">I libri vengono letti e scritti <b>solo</b> nel file JSON della repo privata: il browser non tiene una copia dei dati.
+      Qui resta solo la configurazione di accesso.
+      <ol>
+        <li>Crea una repo privata (es. <code>biblioteca-data</code>).</li>
+        <li>GitHub → Settings → Developer settings → <b>Fine-grained tokens</b> → limita il token a quella repo, permesso <b>Contents: Read and write</b>.</li>
+        <li>Incolla qui i dati. Il file viene creato al primo salvataggio.</li>
+      </ol></div>
+    <div class="g2" style="margin-top:14px">
+      <label class="f"><span>Utente / organizzazione</span><input id="sOwner" value="${esc(c.owner)}" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
+      <label class="f"><span>Repository</span><input id="sRepo" value="${esc(c.repo)}" autocapitalize="off" autocorrect="off" spellcheck="false"></label>
+    </div>
+    <div class="g2">
+      <label class="f"><span>Branch</span><input id="sBranch" value="${esc(c.branch||'main')}" autocapitalize="off" spellcheck="false"></label>
+      <label class="f"><span>Percorso file</span><input id="sPath" value="${esc(c.path)}" autocapitalize="off" spellcheck="false"></label>
+    </div>
+    <label class="f"><span>Token di accesso</span><input id="sToken" type="password" value="${esc(c.token)}" autocomplete="off" spellcheck="false" placeholder="github_pat_…"></label>
+    <label class="check"><input type="checkbox" id="sRemember" ${remembered||!cfg?'checked':''}> Ricorda su questo dispositivo (altrimenti solo fino alla chiusura della scheda)</label>
+    <div class="btns">
+      <button class="btn" id="sTest">Prova connessione</button>
+      <button class="btn pri" id="sSave">Salva e carica</button>
+    </div>
+    ${connected()?`<div class="btns" style="margin-top:8px"><button class="btn" id="sReload">Ricarica da GitHub</button><button class="btn danger" id="sLogout">Scollega</button></div>`:''}
+
+    <p class="small" style="margin-top:16px">${db.books.length} libri · ultimo aggiornamento: ${db.updatedAt?new Date(db.updatedAt).toLocaleString('it-IT'):'—'} · v${APP_VERSION}</p>
+  `, root => {
+    const read = () => ({ owner:root.querySelector('#sOwner').value.trim(), repo:root.querySelector('#sRepo').value.trim(),
+      branch:root.querySelector('#sBranch').value.trim()||'main', path:root.querySelector('#sPath').value.trim().replace(/^\/+/,''), token:root.querySelector('#sToken').value.trim() });
+    root.querySelector('#sTest').onclick = async () => {
+      const t = read(); if (!t.owner||!t.repo||!t.path||!t.token) return toast('Compila tutti i campi');
+      try{ const r = await ghGet(t); toast(r.exists?`✓ Connesso — ${(r.data?.books||[]).length} libri nel file`:'✓ Connesso — il file verrà creato al primo salvataggio', 4000); }
+      catch(e){ toast(e.message, 5000); }
+    };
+    root.querySelector('#sSave').onclick = async () => {
+      const t = read(); if (!t.owner||!t.repo||!t.path||!t.token) return toast('Compila tutti i campi');
+      const hadLocal = !connected() && db.books.length;
+      saveCfg(t, root.querySelector('#sRemember').checked);
+      closeModal();
+      if (hadLocal){
+        // libri inseriti prima di collegarsi: chiedo se caricarli
+        const local = db;
+        await pullRemote();
+        if (confirm(`Hai ${local.books.length} libri non salvati. Caricarli sulla repo (uniti a quelli presenti)?`)){
+          const ids = new Set(db.books.map(b=>norm(b.title)));
+          local.books.forEach(b=>{ if(!ids.has(norm(b.title))) db.books.push(b); });
+          markDirty('primo caricamento');
+        }
+      } else await pullRemote();
+    };
+    root.querySelector('#sReload')?.addEventListener('click', async () => {
+      if (dirty && !confirm('Ci sono modifiche non ancora salvate. Ricaricare comunque?')) return;
+      closeModal(); await pullRemote(); toast('Ricaricato');
+    });
+    root.querySelector('#sLogout')?.addEventListener('click', () => {
+      if (!confirm('Scollegare? Token e configurazione verranno rimossi da questo dispositivo.')) return;
+      clearCfg(); db={version:SCHEMA_VERSION,updatedAt:null,books:[]}; remoteSha=null; dirty=false; closeModal(); render(); refreshSyncPill();
+    });
+  });
+}
+
+/* =========================================================
+   EVENTI
+   ========================================================= */
+const TAB_TITLES = { books:'Libri', quotes:'Citazioni', stats:'Statistiche' };
+function openMenu(){ $('#drawer').classList.add('open'); $('#dov').classList.add('open'); }
+function closeMenu(){ $('#drawer').classList.remove('open'); $('#dov').classList.remove('open'); }
+function goTab(tab){
+  ui.tab = tab;
+  document.querySelectorAll('#drawer [data-tab]').forEach(x=>x.classList.toggle('on', x.dataset.tab===tab));
+  ['books','quotes','stats'].forEach(n => $('#tab-'+n).classList.toggle('hidden', n!==tab));
+  $('#fab').classList.toggle('hidden', tab!=='books');
+  $('#pageTitle').textContent = TAB_TITLES[tab];
+  render(); window.scrollTo(0,0);
+}
+$('#btnMenu').onclick = openMenu;
+$('#dov').onclick = closeMenu;
+$('#drawer').addEventListener('click', async e => {
+  const t = e.target.closest('[data-tab],[data-act]'); if (!t) return;
+  closeMenu();
+  if (t.dataset.tab) return goTab(t.dataset.tab);
+  switch (t.dataset.act){
+    case 'add': goTab('books'); openEdit(); break;
+    case 'csv': openImportCsv(); break;
+    case 'export': exportJson(); break;
+    case 'restore': $('#fileJson').value=''; $('#fileJson').click(); break;
+    case 'settings': openSettings(); break;
+    case 'sync':
+      if (!connected()) return openSettings();
+      if (dirty && !confirm('Ci sono modifiche non ancora salvate. Ricaricare comunque?')) return;
+      await pullRemote(); toast('Ricaricato'); break;
+  }
+});
+$('#appVer').textContent = `Biblioteca v${APP_VERSION}`;
+$('#statusChips').addEventListener('click', e => { const c=e.target.closest('[data-st]'); if(c){ ui.status=c.dataset.st; render(); } });
+$('#list').addEventListener('click', e => { const c=e.target.closest('.book'); if(c) openDetail(c.dataset.id); });
+$('#q').addEventListener('input', e => { ui.q=e.target.value; renderBooks(); });
+$('#qq').addEventListener('input', e => { ui.qq=e.target.value; renderQuotes(); });
+$('#fGenre').addEventListener('change', e => { ui.genre=e.target.value; render(); });
+$('#fSort').addEventListener('change', e => { ui.sort=e.target.value; render(); });
+$('#fab').onclick = () => openEdit();
+document.addEventListener('keydown', e => { if (e.key!=='Escape') return; if ($('#modalRoot').innerHTML) closeModal(); else closeMenu(); });
+
+/* Avvio */
+render(); refreshSyncPill();
+if (connected()) pullRemote();
+</script>
+</body>
+</html>
