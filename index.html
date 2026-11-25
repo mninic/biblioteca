@@ -116,7 +116,16 @@ main{padding:14px 16px calc(env(safe-area-inset-bottom) + 90px);max-width:900px;
 .f input,.f select,.f textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg2);outline:none}
 .f input:focus,.f select:focus,.f textarea:focus{border-color:var(--acc)}
 .f textarea{min-height:90px;resize:vertical}
-.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.f input,.f select{min-width:0;max-width:100%;display:block}
+.f input[type=date]{-webkit-appearance:none;appearance:none;min-height:43px;line-height:1.2}
+.f input[type=date]::-webkit-date-and-time-value{text-align:left}
+.g2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.g2>*{min-width:0}
+.spine.cv{overflow:hidden;padding:0;position:relative}
+.spine img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.coverbox{display:flex;gap:12px;align-items:stretch}
+.coverbox .spine{width:96px;height:144px;font-size:26px}
+.dhead .spine.cv{width:96px;height:144px}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .rate{display:flex;gap:4px}
 .rate button{background:none;border:0;font-size:28px;color:var(--line);padding:0 2px}
@@ -223,7 +232,7 @@ main{padding:14px 16px calc(env(safe-area-inset-bottom) + 90px);max-width:900px;
 /* =========================================================
    COSTANTI E STATO
    ========================================================= */
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 const STATUSES =['Da leggere','Leggendo','Riassumendo','Letto','Abbandonato'];
 const CFG_KEY = 'biblioteca.github.config';
 const SCHEMA_VERSION = 1;
@@ -246,8 +255,54 @@ const fmtDate = iso => { if(!iso) return ''; const [y,m,d]=iso.split('-'); retur
 const today = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 function toast(msg, ms=2600){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(), ms); }
 function hue(s){ let h=0; for(const c of String(s)) h=(h*31+c.charCodeAt(0))>>>0; return h%360; }
-function spine(b, cls=''){ const h=hue(b.title+b.author); const ini=(b.title||'?').replace(/[^\p{L}\p{N}]/gu,'').slice(0,2).toUpperCase();
-  return `<div class="spine ${cls}" style="background:linear-gradient(160deg,hsl(${h} 38% 38%),hsl(${(h+25)%360} 42% 24%))">${esc(ini)}</div>`; }
+function spine(b, cls='', override){
+  const h=hue(b.title+b.author); const ini=(b.title||'?').replace(/[^\p{L}\p{N}]/gu,'').slice(0,2).toUpperCase();
+  const bg=`background:linear-gradient(160deg,hsl(${h} 38% 38%),hsl(${(h+25)%360} 42% 24%))`;
+  const cover = override!==undefined ? override : b.cover;
+  if (!cover) return `<div class="spine ${cls}" style="${bg}">${esc(ini)}</div>`;
+  const src = override!==undefined ? override : coverSrc(b);
+  const lazy = !src && isRepoCover(cover) ? ` data-cover="${esc(cover)}"` : '';
+  return `<div class="spine cv ${cls}" style="${bg}"${lazy}>${esc(ini)}${src?`<img src="${esc(src)}" alt="">`:''}</div>`;
+}
+
+/* =========================================================
+   COPERTINE (file immagine nella repo, cartella covers/ accanto al JSON)
+   ========================================================= */
+const coverCache = new Map(); // percorso repo -> objectURL / dataURL (solo in memoria)
+const isRepoCover = c => !!c && !/^(https?:|data:)/i.test(c);
+function coverDir(){ const p=cfg?.path||''; const i=p.lastIndexOf('/'); return (i>=0?p.slice(0,i+1):'')+'covers/'; }
+function coverSrc(b){ if(!b.cover) return ''; if(!isRepoCover(b.cover)) return b.cover; const c=coverCache.get(b.cover); return typeof c==='string'?c:''; }
+function loadCover(path){
+  if (coverCache.has(path)) return Promise.resolve(coverCache.get(path));
+  if (!connected()) return Promise.reject();
+  const p = (async()=>{
+    const r = await fetch(`${ghUrl(cfg,path)}?ref=${encodeURIComponent(cfg.branch||'main')}`, { headers:{...ghHeaders(), 'Accept':'application/vnd.github.raw+json'} });
+    if (!r.ok) throw new Error(r.status);
+    const url = URL.createObjectURL(await r.blob()); coverCache.set(path,url); return url;
+  })();
+  coverCache.set(path,p); p.catch(()=>coverCache.delete(path));
+  return p;
+}
+const coverIO = 'IntersectionObserver' in window ? new IntersectionObserver(ents => ents.forEach(en => {
+  if (!en.isIntersecting) return; coverIO.unobserve(en.target); fillCover(en.target);
+}), { rootMargin:'300px' }) : null;
+function fillCover(el){
+  const path = el.dataset.cover; if (!path) return;
+  loadCover(path).then(url => { if (typeof url!=='string') return;
+    document.querySelectorAll(`[data-cover="${CSS.escape(path)}"]`).forEach(x => { x.removeAttribute('data-cover'); if(!x.querySelector('img')) x.insertAdjacentHTML('beforeend', `<img src="${esc(url)}" alt="">`); });
+  }).catch(()=>{});
+}
+function hydrateCovers(){ document.querySelectorAll('[data-cover]').forEach(el => coverIO ? coverIO.observe(el) : fillCover(el)); }
+function resizeImage(file, max=600){
+  return new Promise((res, rej) => {
+    const u = URL.createObjectURL(file), img = new Image();
+    img.onload = () => { const s=Math.min(1, max/Math.max(img.width,img.height)); const c=document.createElement('canvas');
+      c.width=Math.round(img.width*s); c.height=Math.round(img.height*s); c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      URL.revokeObjectURL(u); res(c.toDataURL('image/jpeg',0.82)); };
+    img.onerror = () => { URL.revokeObjectURL(u); rej(new Error('Immagine non leggibile')); };
+    img.src = u;
+  });
+}
 const starsTxt = n => n ? '★'.repeat(n)+'<span style="opacity:.25">'+'★'.repeat(5-n)+'</span>' : '';
 function progressOf(b){
   if (b.totalPages>0) return Math.min(100, Math.round((b.currentPage||0)/b.totalPages*100));
@@ -276,7 +331,7 @@ const connected = () => !!(cfg && cfg.token && cfg.owner && cfg.repo && cfg.path
 /* =========================================================
    GITHUB SYNC (Contents API)
    ========================================================= */
-function ghUrl(c=cfg){ const p=c.path.split('/').map(encodeURIComponent).join('/'); return `https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}/contents/${p}`; }
+function ghUrl(c=cfg, path=c.path){ const p=path.split('/').map(encodeURIComponent).join('/'); return `https://api.github.com/repos/${encodeURIComponent(c.owner)}/${encodeURIComponent(c.repo)}/contents/${p}`; }
 function ghHeaders(c=cfg){ return { 'Authorization':`Bearer ${c.token}`, 'Accept':'application/vnd.github+json', 'X-GitHub-Api-Version':'2022-11-28' }; }
 
 async function ghGet(c=cfg){
@@ -293,7 +348,27 @@ async function ghGet(c=cfg){
   }
   return { exists:true, sha:j.sha, data: text.trim() ? JSON.parse(text) : null };
 }
-async function ghPut(data, sha, message){
+/* Tutte le scritture passano da una coda: commit simultanei sullo stesso branch darebbero 409 */
+let ghQueue = Promise.resolve();
+function ghWrite(fn){ const p = ghQueue.then(fn, fn); ghQueue = p.catch(()=>{}); return p; }
+function ghPutFile(path, base64, message){
+  return ghWrite(async () => {
+    const r = await fetch(ghUrl(cfg,path), { method:'PUT', headers:{...ghHeaders(),'Content-Type':'application/json'},
+      body:JSON.stringify({ message, content:base64, branch:cfg.branch||'main' }) });
+    if (!r.ok) throw new Error(await ghErr(r));
+  });
+}
+function ghDeleteFile(path, message){
+  return ghWrite(async () => {
+    const g = await fetch(`${ghUrl(cfg,path)}?ref=${encodeURIComponent(cfg.branch||'main')}`, { headers:ghHeaders(), cache:'no-store' });
+    if (!g.ok) return;
+    const { sha } = await g.json();
+    await fetch(ghUrl(cfg,path), { method:'DELETE', headers:{...ghHeaders(),'Content-Type':'application/json'},
+      body:JSON.stringify({ message, sha, branch:cfg.branch||'main' }) });
+  });
+}
+function ghPut(data, sha, message){ return ghWrite(() => ghPutRaw(data, sha, message)); }
+async function ghPutRaw(data, sha, message){
   const body = { message, content: b64encode(JSON.stringify(data, null, 2)+'\n'), branch: cfg.branch||'main' };
   if (sha) body.sha = sha;
   const r = await fetch(ghUrl(), { method:'PUT', headers:{...ghHeaders(),'Content-Type':'application/json'}, body:JSON.stringify(body) });
@@ -369,7 +444,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
    MODELLO DATI
    ========================================================= */
 function blankBook(){
-  return { id:uid(), title:'', author:'', status:'Da leggere', rating:0, genres:[], language:'Italiano',
+  return { id:uid(), title:'', author:'', cover:'', status:'Da leggere', rating:0, genres:[], language:'Italiano',
     startedAt:'', finishedAt:'', currentPage:0, totalPages:0, progress:0, description:'', quotes:[],
     createdAt:new Date().toISOString(), updatedAt:new Date().toISOString() };
 }
@@ -579,6 +654,7 @@ function renderBooks(){
         ${b.status==='Leggendo'?`<div class="prog"><i style="width:${p}%"></i></div>`:''}
       </div></button>`;
   }).join('');
+  hydrateCovers();
 }
 
 function allQuotes(){ const out=[]; db.books.forEach(b=>b.quotes.forEach(q=>out.push({q,b}))); return out; }
@@ -683,7 +759,11 @@ function openDetail(id){
       <button class="btn danger" id="dDel">Elimina</button>
     </div>`, root => {
     root.querySelector('#dEdit').onclick = () => openEdit(b.id);
-    root.querySelector('#dDel').onclick = () => { if(confirm(`Eliminare “${b.title}”?`)){ db.books=db.books.filter(x=>x.id!==b.id); closeModal(); markDirty(`eliminato “${b.title}”`); } };
+    hydrateCovers();
+    root.querySelector('#dDel').onclick = () => { if(confirm(`Eliminare “${b.title}”?`)){
+      db.books=db.books.filter(x=>x.id!==b.id); closeModal(); markDirty(`eliminato “${b.title}”`);
+      if (connected() && isRepoCover(b.cover)) ghDeleteFile(b.cover, `Biblioteca: rimossa copertina “${b.title}”`).catch(()=>{});
+    } };
     const sp = root.querySelector('#dSavePage');
     if (sp) sp.onclick = () => {
       b.currentPage = Math.max(0, parseInt(root.querySelector('#dPage').value)||0);
@@ -706,6 +786,14 @@ function openEdit(id){
   const gs = allGenres().map(g=>g[0]);
   modal(`
     <h2><span>${orig?'Modifica libro':'Nuovo libro'}</span><button class="iconbtn" data-close>✕</button></h2>
+    <div class="f"><span>Copertina</span><div class="coverbox">
+      <div id="eCoverPrev"></div>
+      <div class="btns" style="flex-direction:column;flex:1;justify-content:center">
+        <button type="button" class="btn" id="eCoverPick">Scegli o scatta foto</button>
+        <button type="button" class="btn" id="eCoverUrl">Da link</button>
+        <button type="button" class="btn danger" id="eCoverDel">Rimuovi</button>
+      </div></div>
+      <input type="file" id="eCoverFile" accept="image/*" class="hidden"></div>
     <label class="f"><span>Titolo *</span><input id="eTitle" value="${esc(b.title)}" autocomplete="off"></label>
     <label class="f"><span>Autore</span><input id="eAuthor" value="${esc(b.author)}" list="authorsDL" autocomplete="off"></label>
     <datalist id="authorsDL">${[...new Set(db.books.map(x=>x.author).filter(Boolean))].sort().map(a=>`<option value="${esc(a)}">`).join('')}</datalist>
@@ -729,6 +817,29 @@ function openEdit(id){
     <div class="f"><span>Citazioni</span><div id="eQuotes"></div><button type="button" class="btn" id="eAddQ" style="width:100%">+ Aggiungi citazione</button></div>
     <div class="btns" style="margin-top:18px"><button class="btn" data-close>Annulla</button><button class="btn pri" id="eSave">Salva</button></div>
   `, root => {
+    // --- copertina ---
+    let coverData = null; // nuova immagine (dataURL) ancora da caricare
+    const drawCover = () => {
+      root.querySelector('#eCoverPrev').innerHTML = spine({...b, title:root.querySelector('#eTitle')?.value||b.title}, '', coverData || coverSrc(b));
+      root.querySelector('#eCoverDel').classList.toggle('hidden', !coverData && !b.cover);
+      if (!coverData && isRepoCover(b.cover) && !coverSrc(b)) loadCover(b.cover).then(drawCover).catch(()=>{});
+    };
+    drawCover();
+    root.querySelector('#eCoverPick').onclick = () => {
+      if (!connected()) return toast('Collega GitHub per salvare le copertine', 3500);
+      const f=root.querySelector('#eCoverFile'); f.value=''; f.click(); };
+    root.querySelector('#eCoverFile').onchange = async e => {
+      const file = e.target.files[0]; if (!file) return;
+      try{ coverData = await resizeImage(file); drawCover(); }catch(err){ toast(err.message); }
+    };
+    root.querySelector('#eCoverUrl').onclick = () => {
+      const u = prompt('Incolla il link dell\'immagine di copertina', /^https?:/.test(b.cover)?b.cover:'');
+      if (u===null) return;
+      if (u.trim() && !/^https?:\/\//i.test(u.trim())) return toast('Il link deve iniziare con http:// o https://');
+      b.cover = u.trim(); coverData = null; drawCover();
+    };
+    root.querySelector('#eCoverDel').onclick = () => { b.cover=''; coverData=null; drawCover(); };
+
     const qWrap = root.querySelector('#eQuotes');
     const drawQ = () => { qWrap.innerHTML = b.quotes.map((q,i)=>`<div class="qitem"><textarea data-qi="${i}">${esc(q)}</textarea><button type="button" data-qd="${i}">✕</button></div>`).join('');
       qWrap.querySelectorAll('[data-qi]').forEach(t=>t.oninput=()=>b.quotes[+t.dataset.qi]=t.value);
@@ -744,10 +855,20 @@ function openEdit(id){
     root.querySelector('#eStatus').onchange = e => {
       if (e.target.value==='Leggendo' && !root.querySelector('#eStart').value) root.querySelector('#eStart').value=today();
       if ((e.target.value==='Letto'||e.target.value==='Riassumendo') && !root.querySelector('#eEnd').value) root.querySelector('#eEnd').value=today(); };
-    root.querySelector('#eSave').onclick = () => {
+    root.querySelector('#eSave').onclick = async () => {
       const v = s => root.querySelector(s).value;
       b.title = v('#eTitle').trim();
       if (!b.title){ toast('Il titolo è obbligatorio'); return; }
+      const oldCover = orig ? orig.cover : '';
+      if (coverData){
+        const btn = root.querySelector('#eSave'); btn.disabled = true; btn.textContent = 'Carico copertina…';
+        const path = coverDir() + `${b.id}-${Date.now()}.jpg`;
+        try{ await ghPutFile(path, coverData.split(',')[1], `Biblioteca: copertina “${b.title}”`); }
+        catch(err){ toast('Copertina non caricata: '+err.message, 5000); btn.disabled=false; btn.textContent='Salva'; return; }
+        coverCache.set(path, coverData); b.cover = path;
+      }
+      if (oldCover && oldCover!==b.cover && isRepoCover(oldCover) && connected())
+        ghDeleteFile(oldCover, `Biblioteca: rimossa vecchia copertina “${b.title}”`).catch(()=>{});
       b.author = v('#eAuthor').trim(); b.status=v('#eStatus'); b.language=v('#eLang').trim();
       b.startedAt=v('#eStart'); b.finishedAt=v('#eEnd');
       b.currentPage=parseInt(v('#ePage'))||0; b.totalPages=parseInt(v('#eTot'))||0;
@@ -822,7 +943,7 @@ function openSettings(){
     });
     root.querySelector('#sLogout')?.addEventListener('click', () => {
       if (!confirm('Scollegare? Token e configurazione verranno rimossi da questo dispositivo.')) return;
-      clearCfg(); db={version:SCHEMA_VERSION,updatedAt:null,books:[]}; remoteSha=null; dirty=false; closeModal(); render(); refreshSyncPill();
+      clearCfg(); coverCache.forEach(u=>typeof u==='string'&&u.startsWith('blob:')&&URL.revokeObjectURL(u)); coverCache.clear(); db={version:SCHEMA_VERSION,updatedAt:null,books:[]}; remoteSha=null; dirty=false; closeModal(); render(); refreshSyncPill();
     });
   });
 }
