@@ -121,6 +121,10 @@ main{padding:14px 16px calc(env(safe-area-inset-bottom) + 90px);max-width:900px;
 .f input[type=date]::-webkit-date-and-time-value{text-align:left}
 .g2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
 .g2>*{min-width:0}
+.dwrap{position:relative}
+.dwrap input{padding-right:40px}
+.dclr{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:34px;height:34px;border:0;border-radius:8px;background:var(--card);color:var(--tx2);font-size:15px;z-index:1}
+.dwrap.noval .dclr{display:none}
 .spine.cv{overflow:hidden;padding:0;position:relative}
 .spine img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 .coverbox{display:flex;gap:12px;align-items:stretch}
@@ -232,7 +236,7 @@ main{padding:14px 16px calc(env(safe-area-inset-bottom) + 90px);max-width:900px;
 /* =========================================================
    COSTANTI E STATO
    ========================================================= */
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.1.1';
 const STATUSES =['Da leggere','Leggendo','Riassumendo','Letto','Abbandonato'];
 const CFG_KEY = 'biblioteca.github.config';
 const SCHEMA_VERSION = 1;
@@ -804,8 +808,8 @@ function openEdit(id){
     </div>
     <div class="f"><span>Valutazione</span><div class="rate" id="eRate">${[1,2,3,4,5].map(n=>`<button type="button" data-n="${n}" class="${n<=b.rating?'on':''}">★</button>`).join('')}</div></div>
     <div class="g2">
-      <label class="f"><span>Iniziato il</span><input id="eStart" type="date" value="${b.startedAt}"></label>
-      <label class="f"><span>Completato il</span><input id="eEnd" type="date" value="${b.finishedAt}"></label>
+      <div class="f"><span>Iniziato il</span><div class="dwrap"><input id="eStart" type="date" value="${b.startedAt}"><button type="button" class="dclr" data-clr="eStart" aria-label="Cancella data">✕</button></div></div>
+      <div class="f"><span>Completato il</span><div class="dwrap"><input id="eEnd" type="date" value="${b.finishedAt}"><button type="button" class="dclr" data-clr="eEnd" aria-label="Cancella data">✕</button></div></div>
     </div>
     <div class="g2">
       <label class="f"><span>Pagina attuale</span><input id="ePage" type="number" inputmode="numeric" min="0" value="${b.currentPage||''}"></label>
@@ -852,9 +856,15 @@ function openEdit(id){
     root.querySelectorAll('[data-g]').forEach(t => t.onclick = () => {
       const inp=root.querySelector('#eGenres'); const cur=inp.value.split(',').map(s=>s.trim()).filter(Boolean);
       if (!cur.includes(t.dataset.g)) cur.push(t.dataset.g); inp.value=cur.join(', '); });
+    // date: pulsante ✕ per svuotarle (su iPhone il selettore non permette di cancellarle)
+    const syncDates = () => root.querySelectorAll('.dwrap').forEach(w => w.classList.toggle('noval', !w.querySelector('input').value));
+    root.querySelectorAll('.dwrap input').forEach(i => { i.addEventListener('input', syncDates); i.addEventListener('change', syncDates); });
+    root.querySelectorAll('[data-clr]').forEach(btn => btn.onclick = e => { e.preventDefault(); root.querySelector('#'+btn.dataset.clr).value=''; syncDates(); });
+    syncDates();
     root.querySelector('#eStatus').onchange = e => {
       if (e.target.value==='Leggendo' && !root.querySelector('#eStart').value) root.querySelector('#eStart').value=today();
-      if ((e.target.value==='Letto'||e.target.value==='Riassumendo') && !root.querySelector('#eEnd').value) root.querySelector('#eEnd').value=today(); };
+      if ((e.target.value==='Letto'||e.target.value==='Riassumendo') && !root.querySelector('#eEnd').value) root.querySelector('#eEnd').value=today();
+      syncDates(); };
     root.querySelector('#eSave').onclick = async () => {
       const v = s => root.querySelector(s).value;
       b.title = v('#eTitle').trim();
